@@ -1,0 +1,56 @@
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - release
+  pull_request:
+    branches:
+      - main
+      - release
+      
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+name: Test
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - run: cargo test --locked --all-features
+      
+  minimal:
+    name: Minimal versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: rustup default stable
+      - run: cargo +nightly update -Zdirect-minimal-versions
+      - run: cargo test --locked --all-features
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - run: cargo llvm-cov --locked --all-features --lcov --output-path lcov.info
+      - uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
