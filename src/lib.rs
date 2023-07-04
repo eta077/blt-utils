@@ -41,7 +41,7 @@ pub fn deserialize_string<T: TryFrom<String>>(
 where
     <T as TryFrom<String>>::Error: ToString,
 {
-    let value_size = remove_usize(buffer)?;
+    let value_size = deserialize_usize(buffer)?;
     if value_size > buffer.len() {}
     let tmp = buffer.split_off(value_size);
     let result = String::from_utf8(buffer.to_owned()).map_err(|ex| ex.into());
@@ -69,7 +69,7 @@ pub fn deserialize_vec<T: TryFrom<String>>(
 where
     <T as TryFrom<String>>::Error: ToString,
 {
-    let num_items = remove_usize(buffer)?;
+    let num_items = deserialize_usize(buffer)?;
     let mut result = Vec::with_capacity(num_items);
     for _ in 0..num_items {
         result.push(deserialize_string(buffer)?);
@@ -85,53 +85,77 @@ pub fn finalize_serialization(buffer: &mut Vec<u8>) {
     }
 }
 
-/// Removes a usize for the following value from the buffer.
-/// If the buffer does not contain enough elements to create a usize, the buffer is unchanged
-/// and an error is returned.
-pub fn remove_usize(buffer: &mut Vec<u8>) -> Result<usize, DeserializationError> {
-    let usize_len = std::mem::size_of::<usize>();
-    if usize_len > buffer.len() {
-        return Err(DeserializationError::UnexpectedByteCount(
-            usize_len,
-            buffer.len(),
-        ));
-    }
-    let remaining_bytes = buffer.split_off(usize_len);
-    let result = usize::from_le_bytes(buffer.as_slice().try_into().unwrap());
-    *buffer = remaining_bytes;
-    Ok(result)
-}
+blt_macros::add_num!(u64, "u8");
+blt_macros::add_num!(u64, "u16");
+blt_macros::add_num!(u64, "u32");
+blt_macros::add_num!(u64, "u64");
+blt_macros::add_num!(u64, "u128");
+blt_macros::add_num!(usize, "usize");
 
-/// Removes a u32 from the buffer.
-/// If the buffer does not contain enough elements to create a u32, the buffer is unchanged
-/// and an error is returned.
-pub fn remove_u32(buffer: &mut Vec<u8>) -> Result<u32, DeserializationError> {
-    let u32_len = std::mem::size_of::<u32>();
-    if u32_len > buffer.len() {
-        return Err(DeserializationError::UnexpectedByteCount(
-            u32_len,
-            buffer.len(),
-        ));
-    }
-    let remaining_bytes = buffer.split_off(u32_len);
-    let result = u32::from_le_bytes(buffer.as_slice().try_into().unwrap());
-    *buffer = remaining_bytes;
-    Ok(result)
-}
+blt_macros::add_num!(i64, "i8");
+blt_macros::add_num!(i64, "i16");
+blt_macros::add_num!(i64, "i32");
+blt_macros::add_num!(i64, "i64");
+blt_macros::add_num!(i64, "i128");
+blt_macros::add_num!(isize, "isize");
 
-/// Removes an i32 from the buffer.
-/// If the buffer does not contain enough elements to create an i32, the buffer is unchanged
-/// and an error is returned.
-pub fn remove_i32(buffer: &mut Vec<u8>) -> Result<i32, DeserializationError> {
-    let i32_len = std::mem::size_of::<i32>();
-    if i32_len > buffer.len() {
-        return Err(DeserializationError::UnexpectedByteCount(
-            i32_len,
-            buffer.len(),
-        ));
+blt_macros::add_num!(f32, "f32");
+blt_macros::add_num!(f64, "f64");
+
+blt_macros::remove_num!(u64, "u8");
+blt_macros::remove_num!(u64, "u16");
+blt_macros::remove_num!(u64, "u32");
+blt_macros::remove_num!(u64, "u64");
+blt_macros::remove_num!(u64, "u128");
+blt_macros::remove_num!(usize, "usize");
+
+blt_macros::remove_num!(i64, "i8");
+blt_macros::remove_num!(i64, "i16");
+blt_macros::remove_num!(i64, "i32");
+blt_macros::remove_num!(i64, "i64");
+blt_macros::remove_num!(i64, "i128");
+blt_macros::remove_num!(isize, "isize");
+
+blt_macros::remove_num!(f32, "f32");
+blt_macros::remove_num!(f64, "f64");
+
+#[macro_use]
+mod blt_macros {
+    macro_rules! add_num {
+        ($t: ty, $t_name: expr) => {
+            paste::paste! {
+                /// Adds the given numeric value to the buffer.
+                pub fn [<serialize_ $t_name>](value: $t, buffer: &mut Vec<u8>) {
+                    for b in value.to_le_bytes() {
+                        buffer.push(b);
+                    }
+                }
+            }
+        };
     }
-    let remaining_bytes = buffer.split_off(i32_len);
-    let result = i32::from_le_bytes(buffer.as_slice().try_into().unwrap());
-    *buffer = remaining_bytes;
-    Ok(result)
+
+    macro_rules! remove_num {
+        ($t: ty, $t_name: expr) => {
+            paste::paste! {
+                /// Removes the next numeric value from the buffer.
+                /// If the buffer does not contain enough elements to create a numeric value, the buffer is unchanged and an error is returned.
+                pub fn [<deserialize_ $t_name>](buffer: &mut Vec<u8>) -> Result<$t, DeserializationError> {
+                    let t_len = std::mem::size_of::<$t>();
+                    if t_len > buffer.len() {
+                        return Err(DeserializationError::UnexpectedByteCount(
+                            t_len,
+                            buffer.len(),
+                        ));
+                    }
+                    let remaining_bytes = buffer.split_off(t_len);
+                    let result = $t::from_le_bytes(buffer.as_slice().try_into().unwrap());
+                    *buffer = remaining_bytes;
+                    Ok(result)
+                }
+            }
+        };
+    }
+
+    pub(crate) use add_num;
+    pub(crate) use remove_num;
 }
