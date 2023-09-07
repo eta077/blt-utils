@@ -20,7 +20,7 @@ pub enum DeserializationError {
         /// The source of the error.
         source: FromUtf8Error,
     },
-    /// Indicates a custom type could not be converted from a String.
+    /// Indicates a custom type could not be converted from raw parts.
     #[error("{0}")]
     InvalidValue(String),
 }
@@ -42,7 +42,12 @@ where
     <T as TryFrom<String>>::Error: ToString,
 {
     let value_size = deserialize_usize(buffer)?;
-    if value_size > buffer.len() {}
+    if value_size > buffer.len() {
+        return Err(DeserializationError::UnexpectedByteCount(
+            value_size,
+            buffer.len(),
+        ));
+    }
     let tmp = buffer.split_off(value_size);
     let result = String::from_utf8(buffer.to_owned()).map_err(|ex| ex.into());
     *buffer = tmp;
