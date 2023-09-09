@@ -26,6 +26,14 @@ pub enum DeserializationError {
 }
 
 /// Appends the string representation of the given value to the buffer.
+///
+/// # Examples
+///
+/// ```
+/// let mut buffer = Vec::new();
+/// blt_utils::serialize_string("Hello World!", &mut buffer);
+/// assert_eq!(buffer.as_slice(), [12, 0, 0, 0, 0, 0, 0, 0, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33]);
+/// ```
 pub fn serialize_string<T: Into<String>>(value: T, buffer: &mut Vec<u8>) {
     let mut value = value.into().into_bytes();
     for b in value.len().to_le_bytes() {
@@ -35,6 +43,15 @@ pub fn serialize_string<T: Into<String>>(value: T, buffer: &mut Vec<u8>) {
 }
 
 /// Removes the next string value from the buffer.
+///
+/// # Examples
+///
+/// ```
+/// let mut buffer = [12, 0, 0, 0, 0, 0, 0, 0, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33].to_vec();
+/// let value = blt_utils::deserialize_string::<String>(&mut buffer)?;
+/// assert_eq!(value, String::from("Hello World!"));
+/// # Ok::<(), blt_utils::DeserializationError>(())
+/// ```
 pub fn deserialize_string<T: TryFrom<String>>(
     buffer: &mut Vec<u8>,
 ) -> Result<T, DeserializationError>
@@ -57,6 +74,16 @@ where
 }
 
 /// Appends the given collection to the buffer.
+///
+/// # Examples
+///
+/// ```
+/// let v = ["Hello", "World"].to_vec();
+/// let mut buffer = Vec::new();
+/// blt_utils::serialize_vec(v, &mut buffer);
+///
+/// assert_eq!(buffer.as_slice(), [2, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 72, 101, 108, 108, 111, 5, 0, 0, 0, 0, 0, 0, 0, 87, 111, 114, 108, 100]);
+/// ```
 pub fn serialize_vec<T: Into<String>>(value: Vec<T>, buffer: &mut Vec<u8>) {
     for b in value.len().to_le_bytes() {
         buffer.push(b);
@@ -68,6 +95,15 @@ pub fn serialize_vec<T: Into<String>>(value: Vec<T>, buffer: &mut Vec<u8>) {
 
 /// Removes the next collection of strings from the buffer.
 /// If an error occurs for an element after the first, the buffer is left in an indeterminate state.
+///
+/// # Examples
+///
+/// ```
+/// let mut buffer = [2, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 72, 101, 108, 108, 111, 5, 0, 0, 0, 0, 0, 0, 0, 87, 111, 114, 108, 100].to_vec();
+/// let value = blt_utils::deserialize_vec::<String>(&mut buffer)?;
+/// assert_eq!(value.as_slice(), [String::from("Hello"), String::from("World")]);
+/// # Ok::<(), blt_utils::DeserializationError>(())
+/// ```
 pub fn deserialize_vec<T: TryFrom<String>>(
     buffer: &mut Vec<u8>,
 ) -> Result<Vec<T>, DeserializationError>
@@ -83,6 +119,19 @@ where
 }
 
 /// Prepends the length of the buffer to the buffer.
+///
+/// # Examples
+///
+/// ```
+/// // let mut buffer = Vec::new();
+/// // blt_utils::serialize_string("First", &mut buffer);
+/// // blt_utils::serialize_string("Last", &mut buffer);
+/// // blt_utils::serialize_u32(42, &mut buffer);
+/// let mut buffer = [5, 0, 0, 0, 0, 0, 0, 0, 70, 105, 114, 115, 116, 4, 0, 0, 0, 0, 0, 0, 0, 76, 97, 115, 116, 42, 0, 0, 0, 0, 0, 0, 0].to_vec();
+/// blt_utils::finalize_serialization(&mut buffer);
+///
+/// assert_eq!(buffer.as_slice(), [33, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 70, 105, 114, 115, 116, 4, 0, 0, 0, 0, 0, 0, 0, 76, 97, 115, 116, 42, 0, 0, 0, 0, 0, 0, 0]);
+/// ```
 pub fn finalize_serialization(buffer: &mut Vec<u8>) {
     let buffer_len = buffer.len();
     for (index, b) in buffer_len.to_le_bytes().iter().enumerate() {
