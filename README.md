@@ -7,4 +7,4 @@
 Byte-level transport utils
 
 # MSRV
-This crate's Minimum Supported Rust Version is `1.60.0`.
+This crate's Minimum Supported Rust Version is `1.68.2`.
